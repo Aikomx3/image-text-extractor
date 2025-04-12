@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Texto extraído</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <script type="text/javascript">
+        function googleTranslateElementInit() {
+            new google.translate.TranslateElement({
+                pageLanguage: 'es',  // Idioma original de la página
+                includedLanguages: 'en,es,fr,de,it',  // Idiomas a los que puedes traducir
+                layout: google.translate.TranslateElement.InlineLayout.SIMPLE
+            }, 'google_translate_element');
+        }
+    </script>
+    <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
+    <style>
+        .legal-text {
+            display: none;
+            background-color: #f1f1f1;
+            padding: 20px;
+            margin-top: 10px;
+            border: 1px solid #ccc;
+            max-width: 500px;
+            font-size: 14px;
+            border-radius: 5px;
+        }
+        .legal-popup {
+            font-size: 12px;
+            color: blue;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <!-- Contenedor para Google Translate -->
+    <div id="google_translate_element" style="position: absolute; top: 10px; right: 10px;"></div>
+
+    <h1>Texto extraído del documento</h1>
+
+    <!-- Formulario para enviar el texto extraído por correo -->
+    <form action="/send_email" method="POST">
+        <!-- Textarea con el texto extraído -->
+        <textarea name="extracted_text" rows="20" cols="80" readonly>{{ extracted_text }}</textarea>
+        <br><br>
+
+        <!-- Campos para obtener teléfono y dirección -->
+        <label for="telefono">Teléfono:</label>
+        <input type="text" id="telefono" name="telefono" required><br><br>
+
+        <label for="direccion">Dirección:</label>
+        <input type="text" id="direccion" name="direccion" required><br><br>
+
+        <!-- Checkbox para la aceptación de los términos y condiciones -->
+        <label>
+            <input type="checkbox" id="checkbox_aceptacion" name="checkbox_aceptacion" disabled>
+            Acepto el tratamiento de mis datos personales 
+            (<a href="#" onclick="toggleAviso(); return false;">ver aviso legal</a>)
+        </label>
+
+        <!-- Aviso legal desplegable -->
+        <div id="avisoLegal" style="display:none; border:1px solid #ccc; padding:10px; margin-top:10px;">
+            <h3>📄 Aviso sobre el tratamiento de datos personales</h3>
+            <p>Conforme al Real Decreto 933/2021, al Reglamento General de Protección de Datos (RGPD) y a las normativas aplicables en materia de seguridad pública y protección de datos, le informamos de lo siguiente:</p>
+            <p><strong>Responsable del tratamiento de los datos:</strong> Ministerio del Interior de España</p>
+            <p><strong>Recogida y comunicación de los datos:</strong> El propietario del alojamiento turístico actúa únicamente como intermediario en la recogida y transmisión de los datos a las autoridades competentes, en cumplimiento de la normativa vigente.</p>
+            <p><strong>Finalidad del tratamiento:</strong> Los datos personales, incluida una imagen de su documento de identidad o pasaporte, serán tratados únicamente con el propósito de cumplir con la obligación legal de registro e identificación de viajeros en los establecimientos de hospedaje, conforme a las normativas de seguridad pública. La captura de una imagen de su documento se realiza para garantizar la exactitud de los datos proporcionados y su posterior transmisión al Ministerio del Interior.</p>
+            <p><strong>Base legal del tratamiento:</strong> El tratamiento de sus datos, incluida la toma de una fotografía de su documento de identidad o pasaporte, se basa en el cumplimiento de una obligación legal establecida en el artículo 6.1.c del RGPD y en el Real Decreto 933/2021.</p>
+            <p><strong>Plazo de conservación de los datos:</strong> Los datos personales y las imágenes de los documentos de identidad o pasaportes solo se conservarán el tiempo necesario para su comunicación a las autoridades competentes. Una vez transmitidos al Ministerio del Interior, la conservación y tratamiento de los datos estarán sujetos a las normativas aplicables de dicho organismo.</p>
+            <p><strong>Destinatarios de los datos:</strong> Los datos serán comunicados exclusivamente al Ministerio del Interior y a las autoridades competentes en materia de seguridad pública, conforme a las obligaciones legales establecidas en el Real Decreto 933/2021.</p>
+            <p><strong>Derechos del interesado:</strong> Usted tiene derecho a acceder, rectificar, suprimir, oponerse y limitar el tratamiento de sus datos personales, así como el derecho a la portabilidad de los datos. Para ejercer estos derechos en relación con el tratamiento de datos realizado por el Ministerio del Interior, deberá dirigirse a dicho organismo a través de sus canales oficiales.</p>
+            <p><strong>Consentimiento y aceptación:</strong> Al aceptar este aviso legal, usted reconoce haber sido informado sobre el tratamiento de sus datos personales, incluida la captura de una imagen de su documento de identidad o pasaporte, para los fines indicados. Su consentimiento no es necesario para este tratamiento, ya que se fundamenta en una obligación legal.</p>
+            <p><strong>Contacto adicional:</strong> Para cualquier consulta adicional sobre protección de datos, puede acceder al formulario de contacto SES.HOSPEDAJES en el siguiente enlace: 🌍 [https://sede.mir.gob.es/opencms/export/sites/default/es/contacto/](https://sede.mir.gob.es/opencms/export/sites/default/es/contacto/)</p>
+        </div>
+
+        <!-- Script para mostrar el aviso legal -->
+        <script>
+            let avisoVisible = false;
+            function toggleAviso() {
+                var aviso = document.getElementById("avisoLegal");
+                aviso.style.display = aviso.style.display === "none" ? "block" : "none";
+                avisoVisible = !avisoVisible;
+                document.getElementById("checkbox_aceptacion").disabled = !avisoVisible;
+            }
+        </script>
+
+        <!-- Botón para enviar el formulario -->
+        <input type="submit" value="Confirmar y enviar por correo">
+    </form>
+    <br>
+
+    <!-- Enlace para volver a la página de inicio -->
+    <a href="/">Volver</a>
+</body>
+</html>
