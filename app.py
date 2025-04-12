@@ -1,102 +1,101 @@
 import os
-from flask import Flask, request, render_template, redirect, url_for
-from werkzeug.utils import secure_filename
-from PIL import Image
-import pytesseract
+from flask import Flask, render_template, request, redirect, url_for
 from flask_mail import Mail, Message
-import threading
+import pytesseract
+from PIL import Image, ImageFilter, ImageEnhance
+import numpy as np
+import io
+from werkzeug.utils import secure_filename
 
 # Configuración de Flask
 app = Flask(__name__)
+app.config['UPLOAD_FOLDER'] = 'uploads/'
+app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif'}
 
-# Carpeta donde se almacenan los archivos subidos
-UPLOAD_FOLDER = 'uploads'
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
-# Configuración de Flask-Mail
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 465  # Usamos SSL
-app.config['MAIL_USE_SSL'] = True
+# Configuración de Flask-Mail para enviar correos
+app.config['MAIL_SERVER'] = os.environ.get("MAIL_SERVER")
+app.config['MAIL_PORT'] = os.environ.get("MAIL_PORT", 587)
+app.config['MAIL_USE_TLS'] = True
 app.config['MAIL_USERNAME'] = os.environ.get("MAIL_USERNAME")
 app.config['MAIL_PASSWORD'] = os.environ.get("MAIL_PASSWORD")
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get("MAIL_USERNAME")
 
+# Inicializar Flask-Mail
 mail = Mail(app)
 
-# Función para comprobar si el archivo tiene extensión permitida
+# Tesseract path (asegúrate de que esté instalado correctamente en tu contenedor o entorno)
+pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
+
+# Idiomas de Tesseract
+TESSERACT_LANGUAGES = [
+    "ara", "bul", "ces", "chi-sim", "dan", "deu", "eng", "est", "fin", "fra", "ell",
+    "hin", "hrv", "hun", "isl", "ita", "jpn", "kor", "lav", "lit", "mlt", "nld", "pol", 
+    "por", "rus", "ron", "slv", "slk", "spa", "swe"
+]
+
+# Función para verificar si el archivo es de tipo imagen
 def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
-# Función para redimensionar la imagen
-def resize_image(image_path, max_size=(1024, 1024)):
-    with Image.open(image_path) as img:
-        img.thumbnail(max_size)
-        img.save(image_path)
-
-# Función para extraer texto de una imagen
-def extract_text_from_image(image_path):
-    text = ""
-    try:
-        img = Image.open(image_path)
-        text = pytesseract.image_to_string(img)
-    except Exception as e:
-        print(f"Error al extraer texto de la imagen: {e}")
-    return text
-
-# Función para procesar imágenes en segundo plano (thread)
-def process_images(files):
-    extracted_text = ""
-    for file in files:
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-            try:
-                file.save(path)
-                # Redimensionar imagen antes de procesarla
-                resize_image(path)
-                extracted_text += extract_text_from_image(path)  # Extraer todo el texto de la imagen
-            finally:
-                if os.path.exists(path):
-                    os.remove(path)  # Eliminar el archivo después de procesarlo
-    return extracted_text
-
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-@app.route('/upload', methods=['POST'])
-def upload_file():
-    # Verificamos si el formulario contiene un archivo
-    if 'file' not in request.files:
-        return redirect(url_for('index'))
-
-    files = request.files.getlist('file')
-
-    # Limitar a 10 archivos (esto debería coincidir con el límite en el frontend)
-    if len(files) > 10:
-        return "<h2>Solo puedes subir hasta 10 imágenes.</h2><a href='/'>Volver</a>"
-
-    if len(files) == 0:
-        return redirect(url_for('index'))
-
-    # Procesar las imágenes en un thread
-    thread = threading.Thread(target=process_images, args=(files,))
-    thread.start()
+# Preprocesamiento de la imagen
+def preprocess_image(img):
+    # Convertir la imagen a escala de grises
+    img = img.convert('L')
     
-    # Mientras se procesa en el background, le damos una respuesta al usuario
-    return "<h2>Las imágenes están siendo procesadas, por favor espere...</h2><a href='/'>Volver</a>"
+    # Binarización (umbral 180)
+    img = img.point(lambda p: p > 180 and 255)
+    
+    # Reducir el ruido con un filtro de mediana
+    img = img.filter(ImageFilter.MedianFilter(3))
+    
+    # Mejorar el contraste
+    enhancer = ImageEnhance.Contrast(img)
+    img = enhancer.enhance(2)
+    
+    # Redimensionar imagen para mejorar la calidad del OCR
+    img = img.resize((img.width * 2, img.height * 2))  # Aumenta el tamaño de la imagen
+    
+    return img
 
+# Ruta para cargar la imagen y extraer texto
+@app.route('/upload', methods=['POST'])
+def upload_image():
+    # Verificar si el archivo está presente en la solicitud
+    if 'file' not in request.files:
+        return redirect(request.url)
+    file = request.files['file']
+    
+    # Si el archivo es válido
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(file_path)
+        
+        # Abrir la imagen y preprocesarla
+        img = Image.open(file_path)
+        img = preprocess_image(img)
+        
+        # Extraer texto usando Tesseract con múltiples idiomas
+        lang_string = "+".join(TESSERACT_LANGUAGES)
+        extracted_text = pytesseract.image_to_string(img, lang=lang_string)
+        
+        # Renderizar el resultado en una página web (usando results.html)
+        return render_template('results.html', extracted_text=extracted_text, file_path=file_path)
+
+    return "<h2>Solo se permiten imágenes</h2><a href='/'>Volver</a>"
+
+# Ruta para enviar el correo
 @app.route('/send_email', methods=['POST'])
 def send_email():
     extracted_text = request.form['extracted_text']
-
+    telefono = request.form['telefono']
+    direccion = request.form['direccion']
+    comentario = request.form['comentario']
+    
     # Crear el mensaje de correo
-    msg = Message("Datos extraídos de las imágenes",
-                  recipients=[os.environ.get("MAIL_USERNAME")])
-    msg.body = extracted_text
+    msg = Message("Datos extraídos de las imágenes", 
+                  recipients=[os.environ.get("MAIL_USERNAME")])  # Usamos el correo del env
+    msg.body = f"Texto extraído de la imagen:\n\n{extracted_text}\n\nTeléfono: {telefono}\nDirección: {direccion}\nComentario: {comentario}"
 
     try:
         mail.send(msg)
@@ -104,5 +103,10 @@ def send_email():
     except Exception as e:
         return f"<h2>Error al enviar correo: {e}</h2><a href='/'>Volver</a>"
 
+# Ruta para la página principal
+@app.route('/')
+def index():
+    return render_template('index.html')
+
 if __name__ == '__main__':
-    app.run(debug=True, host="0.0.0.0")
+    app.run(debug=True)
