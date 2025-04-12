@@ -4,6 +4,7 @@ from werkzeug.utils import secure_filename
 from PIL import Image
 import pytesseract
 from flask_mail import Mail, Message
+import threading
 
 # Configuración de Flask
 app = Flask(__name__)
@@ -27,6 +28,11 @@ mail = Mail(app)
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+# Función para redimensionar la imagen
+def resize_image(image_path, max_size=(1024, 1024)):
+    with Image.open(image_path) as img:
+        img.thumbnail(max_size)
+        img.save(image_path)
 
 # Función para extraer texto de una imagen
 def extract_text_from_image(image_path):
@@ -38,11 +44,28 @@ def extract_text_from_image(image_path):
         print(f"Error al extraer texto de la imagen: {e}")
     return text
 
+# Función para procesar imágenes en segundo plano (thread)
+def process_images(files):
+    extracted_text = ""
+    for file in files:
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+            try:
+                file.save(path)
+                # Redimensionar imagen antes de procesarla
+                resize_image(path)
+                extracted_text += extract_text_from_image(path)  # Extraer todo el texto de la imagen
+            finally:
+                if os.path.exists(path):
+                    os.remove(path)  # Eliminar el archivo después de procesarlo
+    return extracted_text
 
 @app.route('/')
 def index():
     return render_template('index.html')
-
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -59,23 +82,12 @@ def upload_file():
     if len(files) == 0:
         return redirect(url_for('index'))
 
-    extracted_text = ""
-    for file in files:
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-            try:
-                file.save(path)
-                extracted_text += extract_text_from_image(path)  # Extraer todo el texto de la imagen
-            finally:
-                if os.path.exists(path):
-                    os.remove(path)  # Eliminar el archivo después de procesarlo
-
-    # Volcar el texto extraído en results.html
-    return render_template('results.html', extracted_text=extracted_text)
-
+    # Procesar las imágenes en un thread
+    thread = threading.Thread(target=process_images, args=(files,))
+    thread.start()
+    
+    # Mientras se procesa en el background, le damos una respuesta al usuario
+    return "<h2>Las imágenes están siendo procesadas, por favor espere...</h2><a href='/'>Volver</a>"
 
 @app.route('/send_email', methods=['POST'])
 def send_email():
@@ -91,7 +103,6 @@ def send_email():
         return "<h2>Correo enviado correctamente.</h2><a href='/'>Volver</a>"
     except Exception as e:
         return f"<h2>Error al enviar correo: {e}</h2><a href='/'>Volver</a>"
-
 
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0")
