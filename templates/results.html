@@ -5,11 +5,12 @@
     <title>Texto extraído</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 
+    <!-- Google Translate -->
     <script type="text/javascript">
         function googleTranslateElementInit() {
             new google.translate.TranslateElement({
-                pageLanguage: 'es',  // Idioma original de la página
-                includedLanguages: 'en,es,fr,de,it,ara,bul,ces,chi-sim,dan,deu,eng,est,fin,fra,ell,hin,hrv,hun,isl,ita,jpn,kor,lav,lit,mlt,nld,pol,por,rus,ron,slv,slk,spa,swe',  // Idiomas a los que puedes traducir
+                pageLanguage: 'es',
+                includedLanguages: 'en,es,fr,de,it,ara,bul,ces,chi-sim,dan,deu,eng,est,fin,fra,ell,hin,hrv,hun,isl,ita,jpn,kor,lav,lit,mlt,nld,pol,por,rus,ron,slv,slk,spa,swe',
                 layout: google.translate.TranslateElement.InlineLayout.SIMPLE
             }, 'google_translate_element');
         }
@@ -27,50 +28,67 @@
             font-size: 14px;
             border-radius: 5px;
         }
+
         .legal-popup {
             font-size: 12px;
             color: blue;
             cursor: pointer;
         }
+
+        #avisoLegal {
+            display: none;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-top: 10px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            max-width: 700px;
+        }
     </style>
 </head>
 <body>
-    <!-- Contenedor para Google Translate -->
+
+    <!-- Google Translate -->
     <div id="google_translate_element" style="position: absolute; top: 10px; right: 10px;"></div>
 
     <h1>Texto extraído del documento</h1>
 
-    <!-- Formulario para enviar el texto extraído por correo -->
     <form action="/send_email" method="POST">
         <!-- Textarea con el texto extraído -->
-        <textarea name="extracted_text" rows="20" cols="80" readonly>{{ extracted_text }}</textarea>
+        <textarea name="extracted_text" rows="20" cols="80" required>{{ extracted_text }}</textarea>
         <br><br>
 
-        <!-- Campos para obtener teléfono y dirección -->
+        <!-- Campos manuales -->
         <label for="telefono">Teléfono:</label>
         <input type="text" id="telefono" name="telefono" required><br><br>
 
         <label for="direccion">Dirección:</label>
         <input type="text" id="direccion" name="direccion" required><br><br>
 
-        <!-- Nuevo campo de comentario -->
-        <label for="comentarios">Comentario:</label>
-        <textarea id="comentarios" name="comentarios" rows="4" cols="50"></textarea><br><br>
+        <label for="comentario">Comentario adicional:</label>
+        <textarea id="comentario" name="comentario" rows="4" cols="50" placeholder="Opcional"></textarea><br><br>
 
-        <!-- Checkbox para la aceptación de los términos y condiciones -->
+        <!-- Checkbox y aviso legal -->
         <label>
             <input type="checkbox" id="checkbox_aceptacion" name="checkbox_aceptacion" disabled>
             Acepto el tratamiento de mis datos personales 
             (<a href="#" onclick="toggleAviso(); return false;">ver aviso legal</a>)
         </label>
 
-        <!-- Aviso legal desplegable -->
-        <div id="avisoLegal" style="display:none; border:1px solid #ccc; padding:10px; margin-top:10px;">
+        <div id="avisoLegal">
             <h3>📄 Aviso sobre el tratamiento de datos personales</h3>
-            <p>Conforme al Real Decreto 933/2021...</p>  <!-- Aquí puedes ajustar el aviso legal completo -->
+            <p>Conforme al Real Decreto 933/2021, al Reglamento General de Protección de Datos (RGPD) y a las normativas aplicables en materia de seguridad pública y protección de datos, le informamos de lo siguiente:</p>
+            <p><strong>Responsable del tratamiento de los datos:</strong> Ministerio del Interior de España</p>
+            <p><strong>Recogida y comunicación de los datos:</strong> El propietario del alojamiento turístico actúa únicamente como intermediario, recogiendo los datos requeridos por la normativa vigente y comunicándolos a las autoridades competentes.</p>
+            <p><strong>Finalidad del tratamiento:</strong> Cumplimiento de obligaciones legales relacionadas con la seguridad pública.</p>
+            <p><strong>Base legal del tratamiento:</strong> Obligación legal del responsable del tratamiento conforme a la normativa vigente.</p>
+            <p><strong>Plazo de conservación de los datos:</strong> Durante el tiempo exigido por la legislación correspondiente.</p>
+            <p><strong>Destinatarios de los datos:</strong> Fuerzas y Cuerpos de Seguridad del Estado, cuando así lo exijan las autoridades competentes.</p>
+            <p><strong>Derechos del interesado:</strong> Acceso, rectificación, supresión, limitación del tratamiento, oposición y portabilidad. Puede ejercitarlos contactando al responsable del tratamiento.</p>
+            <p><strong>Consentimiento y aceptación:</strong> Al aceptar este aviso, consiente expresamente el tratamiento de sus datos personales conforme a los términos expuestos.</p>
+            <p><strong>Contacto adicional:</strong> 🌍 <a href="https://sede.mir.gob.es/opencms/export/sites/default/es/contacto/" target="_blank">https://sede.mir.gob.es</a></p>
         </div>
 
-        <!-- Script para mostrar el aviso legal -->
         <script>
             let avisoVisible = false;
             function toggleAviso() {
@@ -81,12 +99,10 @@
             }
         </script>
 
-        <!-- Botón para enviar el formulario -->
+        <!-- Botón de envío -->
         <input type="submit" value="Confirmar y enviar por correo">
     </form>
-    <br>
 
-    <!-- Enlace para volver a la página de inicio -->
-    <a href="/">Volver</a>
+    <br><a href="/">Volver</a>
 </body>
 </html>

@@ -9,7 +9,7 @@ from werkzeug.utils import secure_filename
 
 # Configuración de Flask
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = 'uploads/'
+app.config['UPLOAD_FOLDER'] = 'upload/'
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif'}
 
 # Configuración de Flask-Mail para enviar correos
@@ -22,6 +22,13 @@ app.config['MAIL_DEFAULT_SENDER'] = os.environ.get("MAIL_USERNAME")
 
 # Inicializar Flask-Mail
 mail = Mail(app)
+
+#Crear upload/ si no existe
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+
+# Token secreto para control de acceso
+ACCESS_TOKEN = os.environ.get("ACCESS_TOKEN", "Levies_24_token")
 
 # Tesseract path (asegúrate de que esté instalado correctamente en tu contenedor o entorno)
 pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
@@ -60,29 +67,34 @@ def preprocess_image(img):
 # Ruta para cargar la imagen y extraer texto
 @app.route('/upload', methods=['POST'])
 def upload_image():
-    # Verificar si el archivo está presente en la solicitud
     if 'file' not in request.files:
         return redirect(request.url)
-    file = request.files['file']
     
-    # Si el archivo es válido
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(file_path)
-        
-        # Abrir la imagen y preprocesarla
-        img = Image.open(file_path)
-        img = preprocess_image(img)
-        
-        # Extraer texto usando Tesseract con múltiples idiomas
-        lang_string = "+".join(TESSERACT_LANGUAGES)
-        extracted_text = pytesseract.image_to_string(img, lang=lang_string)
-        
-        # Renderizar el resultado en una página web (usando results.html)
-        return render_template('results.html', extracted_text=extracted_text, file_path=file_path)
+    files = request.files.getlist('file')
+    extracted_texts = []
 
-    return "<h2>Solo se permiten imágenes</h2><a href='/'>Volver</a>"
+    for file in files:
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(file_path)
+
+            img = Image.open(file_path)
+            img = preprocess_image(img)
+
+            lang_string = "+".join(TESSERACT_LANGUAGES)
+            extracted_text = pytesseract.image_to_string(img, lang=lang_string)
+
+            extracted_texts.append({
+                'filename': filename,
+                'text': extracted_text,
+                'file_path': file_path
+            })
+
+    if not extracted_texts:
+        return "<h2>No se pudieron procesar imágenes válidas</h2><a href='/'>Volver</a>"
+
+    return render_template('results.html', extracted_texts=extracted_texts)
 
 # Ruta para enviar el correo
 @app.route('/send_email', methods=['POST'])
