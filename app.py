@@ -3,73 +3,63 @@ from flask import Flask, render_template, request, redirect, url_for
 from flask_mail import Mail, Message
 import pytesseract
 from PIL import Image, ImageFilter, ImageEnhance
-import numpy as np
-import io
 from werkzeug.utils import secure_filename
 
-# Configuración de Flask
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'upload/'
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif'}
 
-# Configuración de Flask-Mail para enviar correos
+# Configuración de Flask-Mail
 app.config['MAIL_SERVER'] = os.environ.get("MAIL_SERVER")
-app.config['MAIL_PORT'] = os.environ.get("MAIL_PORT", 587)
+app.config['MAIL_PORT'] = int(os.environ.get("MAIL_PORT", 587))
 app.config['MAIL_USE_TLS'] = True
 app.config['MAIL_USERNAME'] = os.environ.get("MAIL_USERNAME")
 app.config['MAIL_PASSWORD'] = os.environ.get("MAIL_PASSWORD")
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get("MAIL_USERNAME")
 
-# Inicializar Flask-Mail
 mail = Mail(app)
 
-#Crear upload/ si no existe
+# Crear directorio de subida si no existe
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-
-# Token secreto para control de acceso
+# Token secreto
 ACCESS_TOKEN = os.environ.get("ACCESS_TOKEN", "Levies_24_token")
 
-# Tesseract path (asegúrate de que esté instalado correctamente en tu contenedor o entorno)
+# Ruta de Tesseract
 pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
 
-# Idiomas de Tesseract
+# Idiomas
 TESSERACT_LANGUAGES = [
     "ara", "bul", "ces", "chi-sim", "dan", "deu", "eng", "est", "fin", "fra", "ell",
     "hin", "hrv", "hun", "isl", "ita", "jpn", "kor", "lav", "lit", "mlt", "nld", "pol", 
     "por", "rus", "ron", "slv", "slk", "spa", "swe"
 ]
 
-# Función para verificar si el archivo es de tipo imagen
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
-# Preprocesamiento de la imagen
 def preprocess_image(img):
-    # Convertir la imagen a escala de grises
     img = img.convert('L')
-    
-    # Binarización (umbral 180)
     img = img.point(lambda p: p > 180 and 255)
-    
-    # Reducir el ruido con un filtro de mediana
     img = img.filter(ImageFilter.MedianFilter(3))
-    
-    # Mejorar el contraste
     enhancer = ImageEnhance.Contrast(img)
     img = enhancer.enhance(2)
-    
-    # Redimensionar imagen para mejorar la calidad del OCR
-    img = img.resize((img.width * 2, img.height * 2))  # Aumenta el tamaño de la imagen
-    
+    img = img.resize((img.width * 2, img.height * 2))
     return img
 
-# Ruta para cargar la imagen y extraer texto
+@app.route('/')
+def index():
+    return render_template('index.html')
+
 @app.route('/upload', methods=['POST'])
 def upload_image():
+    token = request.form.get("access_token")
+    if token != ACCESS_TOKEN:
+        return "<h2>Token inválido</h2><a href='/'>Volver</a>"
+
     if 'file' not in request.files:
         return redirect(request.url)
-    
+
     files = request.files.getlist('file')
     extracted_texts = []
 
@@ -94,19 +84,17 @@ def upload_image():
     if not extracted_texts:
         return "<h2>No se pudieron procesar imágenes válidas</h2><a href='/'>Volver</a>"
 
-    return render_template('results.html', extracted_texts=extracted_texts)
+    combined_text = "\n\n".join([e['text'] for e in extracted_texts])
+    return render_template('results.html', extracted_text=combined_text)
 
-# Ruta para enviar el correo
 @app.route('/send_email', methods=['POST'])
 def send_email():
     extracted_text = request.form['extracted_text']
     telefono = request.form['telefono']
     direccion = request.form['direccion']
     comentario = request.form['comentario']
-    
-    # Crear el mensaje de correo
-    msg = Message("Datos extraídos de las imágenes", 
-                  recipients=[os.environ.get("MAIL_USERNAME")])  # Usamos el correo del env
+
+    msg = Message("Datos extraídos de las imágenes", recipients=[os.environ.get("MAIL_USERNAME")])
     msg.body = f"Texto extraído de la imagen:\n\n{extracted_text}\n\nTeléfono: {telefono}\nDirección: {direccion}\nComentario: {comentario}"
 
     try:
@@ -114,11 +102,6 @@ def send_email():
         return "<h2>Correo enviado correctamente.</h2><a href='/'>Volver</a>"
     except Exception as e:
         return f"<h2>Error al enviar correo: {e}</h2><a href='/'>Volver</a>"
-
-# Ruta para la página principal
-@app.route('/')
-def index():
-    return render_template('index.html')
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -104,5 +104,12 @@
     </form>
 
     <br><a href="/">Volver</a>
+
+    {% if result %}
+    <script>
+        alert("{{ result }}");
+    </script>
+    {% endif %}
+
 </body>
 </html>

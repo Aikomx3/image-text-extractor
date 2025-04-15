@@ -3,47 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <title>Subir Imágenes</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    
-    <!-- Google Translate -->
-    <script type="text/javascript">
-        function googleTranslateElementInit() {
-            new google.translate.TranslateElement({
-                pageLanguage: 'es',
-                includedLanguages: 'en,es,fr,de,it,ara,bul,ces,chi-sim,dan,deu,eng,est,fin,fra,ell,hin,hrv,hun,isl,ita,jpn,kor,lav,lit,mlt,nld,pol,por,rus,ron,slv,slk,spa,swe',
-                layout: google.translate.TranslateElement.InlineLayout.SIMPLE
-            }, 'google_translate_element');
-        }
-    </script>
-    <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
-
-    <!-- Validación de archivos -->
-    <script>
-        function validateFiles(input) {
-            if (input.files.length > 10) {
-                alert("⚠️ Solo puedes subir hasta 10 imágenes.");
-                input.value = "";
-            }
-        }
-    </script>
 </head>
 <body>
-    <div id="google_translate_element" style="position: absolute; top: 10px; right: 10px;"></div>
+    <h1>🖼️ Sube hasta 10 imágenes</h1>
 
-    <main>
-        <h1>🖼️ Sube hasta 10 imágenes para extraer texto</h1>
+    <form action="/upload" method="POST" enctype="multipart/form-data">
+        <label for="access_token">🔐 Token de seguridad:</label><br>
+        <input type="password" id="access_token" name="access_token" required><br><br>
 
-        <form action="/upload" method="POST" enctype="multipart/form-data">
-            <label for="access_token">🔐 Token de seguridad:</label><br>
-            <input type="password" id="access_token" name="access_token" placeholder="Token de acceso" required>
-            <br><br>
+        <label for="file">📁 Selecciona imágenes (JPG, PNG, JPEG):</label>
+        <input type="file" id="file" name="file" accept="image/*" multiple required><br><br>
 
-            <label for="file">📁 Selecciona imágenes (JPG, PNG, JPEG):</label>
-            <input type="file" id="file" name="file" accept="image/*" multiple onchange="validateFiles(this)" required>
-            <br><br>
-
-            <input type="submit" value="📤 Subir Imágenes">
-        </form>
-    </main>
+        <input type="submit" value="📤 Subir Imágenes">
+    </form>
 </body>
 </html>
