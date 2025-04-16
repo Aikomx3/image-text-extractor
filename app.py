@@ -50,6 +50,16 @@ TESSERACT_LANGUAGES = [
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
+# Función para preprocesar la imagen: convertir a escala de grises y redimensionar
+def preprocess_image(image_path, max_size=(1024, 1024)):
+    with Image.open(image_path) as img:
+        # Redimensionar la imagen
+        img.thumbnail(max_size)
+        # Convertir la imagen a escala de grises
+        img = img.convert('L')
+        # Comprimir la imagen para reducir su tamaño
+        img.save(image_path, quality=85, optimize=True)
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -72,6 +82,9 @@ def upload_image():
             filename = secure_filename(file.filename)
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(file_path)
+
+            # Preprocesar la imagen: redimensionar y convertir a escala de grises
+            preprocess_image(file_path)
 
             img = Image.open(file_path)
             lang_string = "+".join(TESSERACT_LANGUAGES)
